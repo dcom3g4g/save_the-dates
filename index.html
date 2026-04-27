@@ -43,12 +43,19 @@
     .script { font-family: 'Dancing Script', cursive; font-weight: 700; }
     section { position: relative; z-index: 1; padding: 80px 24px; }
 
-    .confetti {
-      position: fixed; top: -30px; width: 10px; height: 10px;
-      opacity: 0.75; animation: fall linear infinite;
-      z-index: 0; pointer-events: none; user-select: none;
+    .confetti-layer {
+      position: fixed; inset: 0; z-index: 0;
+      pointer-events: none; overflow: hidden;
     }
-    @keyframes fall { to { transform: translateY(110vh) rotate(540deg); } }
+    .confetti {
+      position: absolute; top: -10vh; width: 12px; height: 12px;
+      opacity: 0.85; animation: fall linear infinite;
+      will-change: transform;
+    }
+    @keyframes fall {
+      from { transform: translateY(0) rotate(0); }
+      to { transform: translateY(120vh) rotate(540deg); }
+    }
 
     /* Hero */
     .hero {
@@ -315,7 +322,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
+      *:not(.confetti), *::before, *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
@@ -1332,27 +1339,38 @@
     // ============== CONFETTI ==============
     const confettiColors = ['#ff6b8a', '#ffd97d', '#7de5d0', '#ffb3c6', '#ff9a9e'];
     const confettiEmojis = ['💖', '✨', '🌸', '💕', '🌟', '💘'];
+    function getConfettiLayer() {
+      let layer = document.getElementById('confetti-layer');
+      if (!layer) {
+        layer = document.createElement('div');
+        layer.id = 'confetti-layer';
+        layer.className = 'confetti-layer';
+        document.body.appendChild(layer);
+      }
+      return layer;
+    }
     function spawnConfetti(count) {
+      const layer = getConfettiLayer();
       for (let i = 0; i < count; i++) {
         const c = document.createElement('div');
         c.className = 'confetti';
-        c.style.left = Math.random() * 100 + 'vw';
+        c.style.left = Math.random() * 100 + '%';
         const duration = 7 + Math.random() * 9;
         c.style.animationDuration = duration + 's';
-        c.style.animationDelay = Math.random() * duration + 's';
+        c.style.animationDelay = (-Math.random() * duration) + 's';
         if (Math.random() < 0.35) {
           c.textContent = confettiEmojis[Math.floor(Math.random() * confettiEmojis.length)];
-          c.style.fontSize = (14 + Math.random() * 14) + 'px';
+          c.style.fontSize = (16 + Math.random() * 16) + 'px';
           c.style.background = 'transparent';
           c.style.width = 'auto'; c.style.height = 'auto';
         } else {
           c.style.background = confettiColors[Math.floor(Math.random() * confettiColors.length)];
           c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
         }
-        document.body.appendChild(c);
+        layer.appendChild(c);
       }
     }
-    spawnConfetti(22);
+    spawnConfetti(36);
 
     // ============== INIT ==============
     // ============== LOCK SCREEN ==============
