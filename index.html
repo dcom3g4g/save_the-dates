@@ -518,17 +518,16 @@
       fill: none; stroke: var(--coral); stroke-width: 1.2;
       opacity: 0.55;
     }
-    .lock-heart-fill {
-      position: absolute; inset: 0;
-      clip-path: inset(100% 0 0 0);
-      transition: clip-path 0.3s ease;
+    /* Rect dán full viewBox, dùng transform: scaleY để fill từ dưới lên.
+       transform-origin tính theo userSpace của SVG (đáy của viewBox = y=22). */
+    .heart-fill-rect {
+      transform: scaleY(0);
+      transform-origin: 0 22px;
+      transition: transform 0.3s ease;
     }
-    .lock-heart-fill.holding {
-      clip-path: inset(0 0 0 0);
-      transition: clip-path 5s linear;
-    }
-    .lock-heart-fill svg path {
-      fill: var(--coral); stroke: var(--coral-dark); stroke-width: 1;
+    .heart-fill-rect.holding {
+      transform: scaleY(1);
+      transition: transform 5s linear;
     }
     .lock-hold-hint {
       position: fixed; bottom: 12vh; left: 50%; transform: translateX(-50%);
@@ -647,13 +646,17 @@
       <button class="lock-back" id="lock-back">⟵ chọn lại</button>
       <div id="lock-heart" class="lock-heart">
         <svg viewBox="0 0 24 22" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <clipPath id="heart-shape" clipPathUnits="userSpaceOnUse">
+              <path d="M12 21s-7.5-4.7-9.5-9.4C0.7 7.4 3 3 7.5 3c2 0 3.5 1 4.5 2.5C13 4 14.5 3 16.5 3 21 3 23.3 7.4 21.5 11.6 19.5 16.3 12 21 12 21z"/>
+            </clipPath>
+          </defs>
           <path class="heart-outline" d="M12 21s-7.5-4.7-9.5-9.4C0.7 7.4 3 3 7.5 3c2 0 3.5 1 4.5 2.5C13 4 14.5 3 16.5 3 21 3 23.3 7.4 21.5 11.6 19.5 16.3 12 21 12 21z"/>
+          <g clip-path="url(#heart-shape)">
+            <rect class="heart-fill-rect" id="lock-heart-fill"
+                  x="0" y="0" width="24" height="22" fill="#ff6b8a"/>
+          </g>
         </svg>
-        <div class="lock-heart-fill" id="lock-heart-fill">
-          <svg viewBox="0 0 24 22" preserveAspectRatio="xMidYMid meet">
-            <path d="M12 21s-7.5-4.7-9.5-9.4C0.7 7.4 3 3 7.5 3c2 0 3.5 1 4.5 2.5C13 4 14.5 3 16.5 3 21 3 23.3 7.4 21.5 11.6 19.5 16.3 12 21 12 21z"/>
-          </svg>
-        </div>
       </div>
       <p class="lock-hold-hint">Chạm và giữ 5 giây để mở khóa</p>
     </div>
@@ -1399,8 +1402,9 @@
       e.preventDefault();
       if (lockUnlocking) return;
       lockHoldStarted = Date.now();
-      // Force reflow so transition restarts cleanly when re-pressed quickly.
-      void lockHeartFill.offsetWidth;
+      // Force reflow để transition khởi động lại sạch khi nhấn lại nhanh.
+      // SVG element không có offsetWidth nên dùng getBoundingClientRect.
+      lockHeartFill.getBoundingClientRect();
       lockHeartFill.classList.add('holding');
       lockHoldTimer = setTimeout(completeHold, HOLD_MS);
     }
