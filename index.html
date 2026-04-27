@@ -1421,9 +1421,13 @@
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || `Mở khóa thất bại (${res.status})`);
         }
-        const result = await res.json();
+        await res.json().catch(() => ({}));
         state.unlocked = true;
-        state.unlocked_at = result.unlocked_at || new Date().toISOString();
+        // Dùng client's "now" làm mốc đếm ngay sau unlock — server đã ghi
+        // unlocked_at trước khi flush blob (~vài giây), nếu lấy giá trị đó thì
+        // counter sẽ nhảy lên 5-20s thay vì 0. Reload trang sau này sẽ dùng
+        // giá trị server lưu → đó mới là "time since unlock" thực sự.
+        state.unlocked_at = new Date().toISOString();
         // Smooth fade-out của lock screen, rồi reveal app.
         lockScreen.style.transition = 'opacity 0.5s ease';
         lockScreen.style.opacity = '0';
