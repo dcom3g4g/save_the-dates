@@ -336,6 +336,19 @@
     .admin-fab:hover { transform: scale(1.08); }
     .admin-fab[hidden] { display: none; }
 
+    /* === Music toggle (top-right, hiện sau khi unlocked) === */
+    .music-toggle {
+      position: fixed; top: 16px; right: 16px; z-index: 95;
+      width: 44px; height: 44px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,0.85); backdrop-filter: blur(6px);
+      font-size: 1.25rem; cursor: pointer;
+      box-shadow: var(--shadow);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.2s;
+    }
+    .music-toggle:hover { transform: scale(1.08); }
+    .music-toggle[hidden] { display: none; }
+
     /* === Modal mật khẩu === */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(22,10,22,0.55);
@@ -658,6 +671,8 @@
 
   <!-- Admin floating button -->
   <button class="admin-fab" id="admin-fab" aria-label="Quản lý" hidden>✏️</button>
+  <button class="music-toggle" id="music-toggle" aria-label="Bật/tắt nhạc" hidden>🔊</button>
+  <audio id="bg-music" src="/assets/music.mp3" loop preload="auto" hidden></audio>
 
   <!-- First-run banner -->
   <div class="first-run-banner" id="first-run-banner" hidden>
@@ -1420,6 +1435,10 @@
     function startHold(e) {
       e.preventDefault();
       if (lockUnlocking) return;
+      // Prime audio ngay khi user gesture còn — iOS chỉ cho play() lần đầu khi
+      // đang trong handler gesture. Sau khi prime, các play() sau (trong
+      // completeHold/revealApp) chạy được dù gesture đã hết hạn.
+      primeMusic();
       cancelHoldRAF();
       lockHoldStartTs = performance.now();
       const tick = () => {
@@ -1501,6 +1520,61 @@
     lockHeart.addEventListener('pointercancel', endHold);
     lockHeart.addEventListener('pointerleave', endHold);
 
+    // ============== BACKGROUND MUSIC ==============
+    const bgMusic = document.getElementById('bg-music');
+    const musicToggle = document.getElementById('music-toggle');
+    const MUSIC_PREF_KEY = 'music_pref_v1';
+    let musicPrimed = false;
+    bgMusic.volume = 0.5;
+
+    function setMusicIcon(playing) {
+      musicToggle.textContent = playing ? '🔊' : '🔇';
+    }
+    function readMusicPref() {
+      try { return localStorage.getItem(MUSIC_PREF_KEY); } catch { return null; }
+    }
+    function writeMusicPref(v) {
+      try { localStorage.setItem(MUSIC_PREF_KEY, v); } catch {}
+    }
+    function primeMusic() {
+      // Mở khóa autoplay cho session: gọi play() với volume 0 trong gesture
+      // handler, rồi pause ngay. iOS sau đó cho play() chạy không cần gesture.
+      if (musicPrimed) return;
+      const prevVol = bgMusic.volume;
+      bgMusic.volume = 0;
+      const p = bgMusic.play();
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          bgMusic.pause();
+          bgMusic.currentTime = 0;
+          bgMusic.volume = prevVol;
+          musicPrimed = true;
+        }).catch(() => {
+          bgMusic.volume = prevVol;
+        });
+      }
+    }
+    async function playMusic() {
+      try {
+        await bgMusic.play();
+        setMusicIcon(true);
+        writeMusicPref('on');
+      } catch {
+        setMusicIcon(false);
+        // Không ghi pref — user không chọn tắt, chỉ browser block.
+      }
+    }
+    function pauseMusic() {
+      bgMusic.pause();
+      setMusicIcon(false);
+      writeMusicPref('off');
+    }
+    function toggleMusic() {
+      if (bgMusic.paused) playMusic();
+      else pauseMusic();
+    }
+    musicToggle.addEventListener('click', toggleMusic);
+
     // ============== RELOCK (admin) ==============
     document.getElementById('drawer-relock').addEventListener('click', async () => {
       if (!confirm('Khóa lại trang? Lần sau ai vào sẽ phải giữ 5 giây nửa trái tim mới mở được.')) return;
@@ -1528,6 +1602,13 @@
       startCountdown();
       document.getElementById('app').hidden = false;
       document.getElementById('admin-fab').hidden = false;
+      musicToggle.hidden = false;
+      const pref = readMusicPref();
+      if (pref === 'off') {
+        setMusicIcon(false);
+      } else {
+        playMusic();
+      }
       showFirstRunBannerIfNeeded();
     }
     async function init() {
