@@ -518,17 +518,8 @@
       fill: none; stroke: var(--coral); stroke-width: 1.2;
       opacity: 0.55;
     }
-    /* Rect dán full viewBox, dùng transform: scaleY để fill từ dưới lên.
-       transform-origin tính theo userSpace của SVG (đáy của viewBox = y=22). */
-    .heart-fill-rect {
-      transform: scaleY(0);
-      transform-origin: 0 22px;
-      transition: transform 0.3s ease;
-    }
-    .heart-fill-rect.holding {
-      transform: scaleY(1);
-      transition: transform 5s linear;
-    }
+    /* heart-fill-rect: y/height được JS set theo rAF (CSS transition trên SVG
+       transform/clip-path không tin cậy trên iOS). */
     .lock-hold-hint {
       position: fixed; bottom: 12vh; left: 50%; transform: translateX(-50%);
       color: var(--coral); font-weight: 600;
@@ -654,7 +645,7 @@
           <path class="heart-outline" d="M12 21s-7.5-4.7-9.5-9.4C0.7 7.4 3 3 7.5 3c2 0 3.5 1 4.5 2.5C13 4 14.5 3 16.5 3 21 3 23.3 7.4 21.5 11.6 19.5 16.3 12 21 12 21z"/>
           <g clip-path="url(#heart-shape)">
             <rect class="heart-fill-rect" id="lock-heart-fill"
-                  x="0" y="0" width="24" height="22" fill="#ff6b8a"/>
+                  x="0" y="22" width="24" height="0" fill="#ff6b8a"/>
           </g>
         </svg>
       </div>
@@ -1372,9 +1363,16 @@
     const lockHeartFill = document.getElementById('lock-heart-fill');
     const lockBack = document.getElementById('lock-back');
     const HOLD_MS = 5000;
-    let lockHoldTimer = null;
-    let lockHoldStarted = 0;
+    const HEART_VBH = 22;
+    let lockHoldStartTs = 0;
+    let lockHoldRAF = null;
     let lockUnlocking = false;
+
+    function setHeartFill(progress) {
+      const filled = HEART_VBH * Math.max(0, Math.min(1, progress));
+      lockHeartFill.setAttribute('y', String(HEART_VBH - filled));
+      lockHeartFill.setAttribute('height', String(filled));
+    }
 
     function showLockScreen() {
       lockScreen.hidden = false;
@@ -1385,7 +1383,6 @@
     }
     function hideLockScreen() {
       lockScreen.hidden = true;
-      // Detach side classes so next time (after admin reset) it starts fresh.
       lockHeart.classList.remove('left', 'right');
     }
     function pickSide(side) {
@@ -1395,27 +1392,52 @@
       lockHold.hidden = false;
       resetHoldFill();
     }
+    function cancelHoldRAF() {
+      if (lockHoldRAF !== null) {
+        cancelAnimationFrame(lockHoldRAF);
+        lockHoldRAF = null;
+      }
+    }
     function resetHoldFill() {
-      lockHeartFill.classList.remove('holding');
+      cancelHoldRAF();
+      setHeartFill(0);
     }
     function startHold(e) {
       e.preventDefault();
       if (lockUnlocking) return;
-      lockHoldStarted = Date.now();
-      // Force reflow để transition khởi động lại sạch khi nhấn lại nhanh.
-      // SVG element không có offsetWidth nên dùng getBoundingClientRect.
-      lockHeartFill.getBoundingClientRect();
-      lockHeartFill.classList.add('holding');
-      lockHoldTimer = setTimeout(completeHold, HOLD_MS);
+      cancelHoldRAF();
+      lockHoldStartTs = performance.now();
+      const tick = () => {
+        const elapsed = performance.now() - lockHoldStartTs;
+        const progress = elapsed / HOLD_MS;
+        if (progress >= 1) {
+          setHeartFill(1);
+          lockHoldRAF = null;
+          completeHold();
+          return;
+        }
+        setHeartFill(progress);
+        lockHoldRAF = requestAnimationFrame(tick);
+      };
+      lockHoldRAF = requestAnimationFrame(tick);
     }
     function endHold() {
       if (lockUnlocking) return;
-      clearTimeout(lockHoldTimer);
-      lockHoldTimer = null;
-      const held = Date.now() - lockHoldStarted;
-      if (held >= HOLD_MS) return;
-      // Released early — reset fill.
-      resetHoldFill();
+      if (lockHoldRAF === null) return;
+      cancelHoldRAF();
+      // Animate fade-out từ vị trí hiện tại về 0 trong 300ms.
+      const elapsed = performance.now() - lockHoldStartTs;
+      const startProgress = Math.min(elapsed / HOLD_MS, 1);
+      if (startProgress >= 1) return;
+      const backStart = performance.now();
+      const BACK_MS = 300;
+      const backTick = () => {
+        const t = Math.min((performance.now() - backStart) / BACK_MS, 1);
+        setHeartFill(startProgress * (1 - t));
+        if (t < 1) lockHoldRAF = requestAnimationFrame(backTick);
+        else lockHoldRAF = null;
+      };
+      lockHoldRAF = requestAnimationFrame(backTick);
     }
     async function completeHold() {
       lockUnlocking = true;
