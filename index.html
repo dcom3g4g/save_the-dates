@@ -704,7 +704,7 @@
 
   <script type="module">
     // ============== STATE ==============
-    const state = { config: {}, milestones: [], unlocked: false };
+    const state = { config: {}, milestones: [], unlocked: false, unlocked_at: null };
 
     // ============== HELPERS ==============
     function escapeHtml(s) {
@@ -784,6 +784,7 @@
       state.config = json.config || {};
       state.milestones = Array.isArray(json.milestones) ? json.milestones : [];
       state.unlocked = !!json.unlocked;
+      state.unlocked_at = json.unlocked_at || null;
     }
 
     // ============== ADMIN AUTH ==============
@@ -875,16 +876,21 @@
       countdownTimer = setInterval(tick, 1000);
     }
     function tick() {
-      const startStr = state.config.start_date;
-      if (!startStr) {
+      // Ưu tiên unlocked_at (timestamp lúc 2 bạn cùng giữ trái tim mở khóa)
+      // → counter chạy từ 0s ngay sau unlock. Fallback start_date nếu chưa unlock.
+      let startMs;
+      if (state.unlocked_at) {
+        startMs = new Date(state.unlocked_at).getTime();
+      } else if (state.config.start_date) {
+        startMs = new Date(state.config.start_date + 'T00:00:00+07:00').getTime();
+      } else {
         document.getElementById('days').textContent = '—';
         document.getElementById('hours').textContent = '--';
         document.getElementById('minutes').textContent = '--';
         document.getElementById('seconds').textContent = '--';
         return;
       }
-      const start = new Date(startStr + 'T00:00:00+07:00').getTime();
-      const diff = Math.max(0, Date.now() - start);
+      const diff = Math.max(0, Date.now() - startMs);
       const d = Math.floor(diff / 86400000);
       const h = Math.floor(diff % 86400000 / 3600000);
       const m = Math.floor(diff % 3600000 / 60000);
@@ -1415,7 +1421,9 @@
           const err = await res.json().catch(() => ({}));
           throw new Error(err.error || `Mở khóa thất bại (${res.status})`);
         }
+        const result = await res.json();
         state.unlocked = true;
+        state.unlocked_at = result.unlocked_at || new Date().toISOString();
         // Smooth fade-out của lock screen, rồi reveal app.
         lockScreen.style.transition = 'opacity 0.5s ease';
         lockScreen.style.opacity = '0';

@@ -10,9 +10,10 @@ export default async function handler(req, res) {
       const data = await readData();
       if (!data.unlocked) {
         data.unlocked = true;
+        data.unlocked_at = new Date().toISOString();
         await writeData(data);
       }
-      sendJson(res, 200, { ok: true, unlocked: true });
+      sendJson(res, 200, { ok: true, unlocked: true, unlocked_at: data.unlocked_at });
       return;
     }
     if (req.method === 'DELETE') {
@@ -20,6 +21,7 @@ export default async function handler(req, res) {
       verifyPassword(req);
       const data = await readData();
       data.unlocked = false;
+      data.unlocked_at = null;
       await writeData(data);
       sendJson(res, 200, { ok: true, unlocked: false });
       return;

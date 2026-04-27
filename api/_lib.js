@@ -44,7 +44,7 @@ async function listDataBlobs() {
 export async function readData() {
   try {
     const blobs = await listDataBlobs();
-    if (blobs.length === 0) return { config: {}, milestones: [], unlocked: false };
+    if (blobs.length === 0) return { config: {}, milestones: [], unlocked: false, unlocked_at: null };
     const newest = blobs[0];
     const res = await fetch(newest.url, { cache: 'no-store' });
     if (!res.ok) throw new HttpError(500, `Không đọc được data: ${res.status}`);
@@ -53,6 +53,7 @@ export async function readData() {
       config: json.config || {},
       milestones: Array.isArray(json.milestones) ? json.milestones : [],
       unlocked: !!json.unlocked,
+      unlocked_at: json.unlocked_at || null,
     };
   } catch (err) {
     if (err instanceof HttpError) throw err;
