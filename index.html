@@ -321,13 +321,9 @@
       .counter-label { font-size: 0.6rem; letter-spacing: 0.8px; }
     }
 
-    @media (prefers-reduced-motion: reduce) {
-      *:not(.confetti), *::before, *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-      }
-    }
+    /* prefers-reduced-motion override removed: counter / heart / confetti
+       là phần decorative cốt lõi của trang. User có thể tắt JS / dùng tab
+       reader nếu cần loại animation. */
 
     /* === Admin floating button === */
     .admin-fab {
@@ -1370,7 +1366,8 @@
         layer.appendChild(c);
       }
     }
-    spawnConfetti(36);
+    // Mobile (≤720px): 20 confetti — desktop: 36.
+    spawnConfetti(window.matchMedia('(max-width: 720px)').matches ? 20 : 36);
 
     // ============== INIT ==============
     // ============== LOCK SCREEN ==============
