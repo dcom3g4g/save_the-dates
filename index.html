@@ -459,6 +459,95 @@
     }
     .first-run-banner[hidden] { display: none; }
 
+    /* === Lock screen === */
+    .lock-screen {
+      position: fixed; inset: 0; z-index: 1500;
+      background: linear-gradient(135deg, #fff0f5 0%, #fff8f0 50%, #e6fffa 100%);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      font-family: 'Quicksand', sans-serif;
+      user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+    }
+    .lock-screen[hidden] { display: none; }
+
+    .lock-picker { text-align: center; padding: 28px; max-width: 420px; width: 100%; }
+    .lock-picker h2 {
+      font-family: 'Dancing Script', cursive; color: var(--coral);
+      font-size: clamp(1.8rem, 6vw, 2.6rem); margin-bottom: 12px;
+    }
+    .lock-picker p {
+      color: var(--ink); opacity: 0.7; margin-bottom: 28px;
+      font-size: 0.95rem; line-height: 1.5;
+    }
+    .lock-picker .btn-side {
+      display: block; width: 100%; margin: 12px 0;
+      padding: 18px 22px; border: none; border-radius: 16px;
+      background: white; color: var(--ink);
+      font-family: inherit; font-size: 1.05rem; font-weight: 600;
+      box-shadow: var(--shadow); cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .lock-picker .btn-side:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+    .lock-picker .btn-side .heart-mini {
+      color: var(--coral); font-size: 1.3rem; margin: 0 6px;
+    }
+
+    .lock-hold {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lock-hold[hidden] { display: none; }
+    .lock-heart {
+      position: fixed; top: 50%;
+      width: 90vw; height: 90vw;
+      max-width: 90vh; max-height: 90vh;
+      pointer-events: auto; cursor: pointer;
+      touch-action: none;
+    }
+    .lock-heart.left {
+      right: 0; transform: translate(50%, -50%);
+    }
+    .lock-heart.right {
+      left: 0; transform: translate(-50%, -50%);
+    }
+    .lock-heart svg {
+      width: 100%; height: 100%;
+      filter: drop-shadow(0 8px 30px rgba(255, 107, 138, 0.3));
+    }
+    .lock-heart .heart-outline {
+      fill: none; stroke: var(--coral); stroke-width: 1.2;
+      opacity: 0.55;
+    }
+    .lock-heart-fill {
+      position: absolute; inset: 0;
+      clip-path: inset(100% 0 0 0);
+      transition: clip-path 0.3s ease;
+    }
+    .lock-heart-fill.holding {
+      clip-path: inset(0 0 0 0);
+      transition: clip-path 5s linear;
+    }
+    .lock-heart-fill svg path {
+      fill: var(--coral); stroke: var(--coral-dark); stroke-width: 1;
+    }
+    .lock-hold-hint {
+      position: fixed; bottom: 12vh; left: 50%; transform: translateX(-50%);
+      color: var(--coral); font-weight: 600;
+      font-size: clamp(1rem, 3.5vw, 1.2rem); text-align: center;
+      max-width: 80vw; z-index: 2;
+      animation: hint-pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes hint-pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+    .lock-back {
+      position: fixed; top: 16px; left: 16px; z-index: 3;
+      background: rgba(255,255,255,0.85); border: none; border-radius: 999px;
+      padding: 8px 16px; font-family: inherit; font-size: 0.85rem; color: var(--ink);
+      cursor: pointer; box-shadow: var(--shadow);
+    }
+
     @media (max-width: 720px) {
       .drawer { width: 100vw; }
       .admin-fab { bottom: 16px; right: 16px; width: 48px; height: 48px; font-size: 1.4rem; }
@@ -546,6 +635,30 @@
     <div class="lb-counter" id="lb-counter"></div>
   </div>
 
+  <!-- Lock screen (first-time visitors hold a half-heart for 5s) -->
+  <div id="lock-screen" class="lock-screen" hidden>
+    <div id="lock-picker" class="lock-picker">
+      <h2>Đặt 2 điện thoại cạnh nhau</h2>
+      <p>Mỗi người chọn một nửa trái tim, rồi giữ đủ 5 giây để mở khóa hành trình của hai mình 💕</p>
+      <button class="btn-side" data-side="left">Tôi cầm <span class="heart-mini">💗</span> bên trái</button>
+      <button class="btn-side" data-side="right">Tôi cầm <span class="heart-mini">💗</span> bên phải</button>
+    </div>
+    <div id="lock-hold" class="lock-hold" hidden>
+      <button class="lock-back" id="lock-back">⟵ chọn lại</button>
+      <div id="lock-heart" class="lock-heart">
+        <svg viewBox="0 0 24 22" preserveAspectRatio="xMidYMid meet">
+          <path class="heart-outline" d="M12 21s-7.5-4.7-9.5-9.4C0.7 7.4 3 3 7.5 3c2 0 3.5 1 4.5 2.5C13 4 14.5 3 16.5 3 21 3 23.3 7.4 21.5 11.6 19.5 16.3 12 21 12 21z"/>
+        </svg>
+        <div class="lock-heart-fill" id="lock-heart-fill">
+          <svg viewBox="0 0 24 22" preserveAspectRatio="xMidYMid meet">
+            <path d="M12 21s-7.5-4.7-9.5-9.4C0.7 7.4 3 3 7.5 3c2 0 3.5 1 4.5 2.5C13 4 14.5 3 16.5 3 21 3 23.3 7.4 21.5 11.6 19.5 16.3 12 21 12 21z"/>
+          </svg>
+        </div>
+      </div>
+      <p class="lock-hold-hint">Chạm và giữ 5 giây để mở khóa</p>
+    </div>
+  </div>
+
   <!-- Admin floating button -->
   <button class="admin-fab" id="admin-fab" aria-label="Quản lý" hidden>✏️</button>
 
@@ -583,6 +696,7 @@
     <div class="drawer-body" id="drawer-body"></div>
     <div class="drawer-foot">
       <button class="btn btn-ghost" id="drawer-logout">Đăng xuất</button>
+      <button class="btn btn-danger" id="drawer-relock">Khóa lại trang</button>
     </div>
   </aside>
 
@@ -590,7 +704,7 @@
 
   <script type="module">
     // ============== STATE ==============
-    const state = { config: {}, milestones: [] };
+    const state = { config: {}, milestones: [], unlocked: false };
 
     // ============== HELPERS ==============
     function escapeHtml(s) {
@@ -669,6 +783,7 @@
       const json = await res.json();
       state.config = json.config || {};
       state.milestones = Array.isArray(json.milestones) ? json.milestones : [];
+      state.unlocked = !!json.unlocked;
     }
 
     // ============== ADMIN AUTH ==============
@@ -1240,18 +1355,137 @@
     spawnConfetti(22);
 
     // ============== INIT ==============
+    // ============== LOCK SCREEN ==============
+    const lockScreen = document.getElementById('lock-screen');
+    const lockPicker = document.getElementById('lock-picker');
+    const lockHold = document.getElementById('lock-hold');
+    const lockHeart = document.getElementById('lock-heart');
+    const lockHeartFill = document.getElementById('lock-heart-fill');
+    const lockBack = document.getElementById('lock-back');
+    const HOLD_MS = 5000;
+    let lockHoldTimer = null;
+    let lockHoldStarted = 0;
+    let lockUnlocking = false;
+
+    function showLockScreen() {
+      lockScreen.hidden = false;
+      lockPicker.hidden = false;
+      lockHold.hidden = true;
+      lockHeart.classList.remove('left', 'right');
+      resetHoldFill();
+    }
+    function hideLockScreen() {
+      lockScreen.hidden = true;
+      // Detach side classes so next time (after admin reset) it starts fresh.
+      lockHeart.classList.remove('left', 'right');
+    }
+    function pickSide(side) {
+      lockHeart.classList.toggle('left', side === 'left');
+      lockHeart.classList.toggle('right', side === 'right');
+      lockPicker.hidden = true;
+      lockHold.hidden = false;
+      resetHoldFill();
+    }
+    function resetHoldFill() {
+      lockHeartFill.classList.remove('holding');
+    }
+    function startHold(e) {
+      e.preventDefault();
+      if (lockUnlocking) return;
+      lockHoldStarted = Date.now();
+      // Force reflow so transition restarts cleanly when re-pressed quickly.
+      void lockHeartFill.offsetWidth;
+      lockHeartFill.classList.add('holding');
+      lockHoldTimer = setTimeout(completeHold, HOLD_MS);
+    }
+    function endHold() {
+      if (lockUnlocking) return;
+      clearTimeout(lockHoldTimer);
+      lockHoldTimer = null;
+      const held = Date.now() - lockHoldStarted;
+      if (held >= HOLD_MS) return;
+      // Released early — reset fill.
+      resetHoldFill();
+    }
+    async function completeHold() {
+      lockUnlocking = true;
+      try {
+        const res = await fetch('/api/unlock', { method: 'POST' });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Mở khóa thất bại (${res.status})`);
+        }
+        state.unlocked = true;
+        // Smooth fade-out của lock screen, rồi reveal app.
+        lockScreen.style.transition = 'opacity 0.5s ease';
+        lockScreen.style.opacity = '0';
+        setTimeout(() => {
+          lockScreen.style.opacity = '';
+          lockScreen.style.transition = '';
+          hideLockScreen();
+          revealApp();
+        }, 500);
+      } catch (err) {
+        console.error(err);
+        showToast(err.message || 'Mở khóa thất bại', true);
+        lockUnlocking = false;
+        resetHoldFill();
+      }
+    }
+
+    // Picker buttons
+    document.querySelectorAll('.btn-side').forEach(b => {
+      b.addEventListener('click', () => pickSide(b.dataset.side));
+    });
+    lockBack.addEventListener('click', () => {
+      lockPicker.hidden = false;
+      lockHold.hidden = true;
+      resetHoldFill();
+    });
+    // Hold events: cover mouse + touch via Pointer Events.
+    lockHeart.addEventListener('pointerdown', startHold);
+    lockHeart.addEventListener('pointerup', endHold);
+    lockHeart.addEventListener('pointercancel', endHold);
+    lockHeart.addEventListener('pointerleave', endHold);
+
+    // ============== RELOCK (admin) ==============
+    document.getElementById('drawer-relock').addEventListener('click', async () => {
+      if (!confirm('Khóa lại trang? Lần sau ai vào sẽ phải giữ 5 giây nửa trái tim mới mở được.')) return;
+      try {
+        const res = await fetch('/api/unlock', {
+          method: 'DELETE',
+          headers: { 'x-admin-password': getPass() },
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Khóa lại thất bại (${res.status})`);
+        }
+        showToast('Đã khóa lại — reload trang để xem lock screen');
+      } catch (err) {
+        showToast(err.message || 'Khóa lại thất bại', true);
+      }
+    });
+
+    // ============== INIT ==============
+    function revealApp() {
+      renderHero();
+      renderTimeline();
+      renderQuote();
+      document.getElementById('year').textContent = new Date().getFullYear();
+      startCountdown();
+      document.getElementById('app').hidden = false;
+      document.getElementById('admin-fab').hidden = false;
+      showFirstRunBannerIfNeeded();
+    }
     async function init() {
       try {
         await loadData();
-        renderHero();
-        renderTimeline();
-        renderQuote();
-        document.getElementById('year').textContent = new Date().getFullYear();
-        startCountdown();
         document.getElementById('loader').hidden = true;
-        document.getElementById('app').hidden = false;
-        document.getElementById('admin-fab').hidden = false;
-        showFirstRunBannerIfNeeded();
+        if (!state.unlocked) {
+          showLockScreen();
+          return;
+        }
+        revealApp();
       } catch (err) {
         console.error(err);
         showError('Không tải được dữ liệu từ máy chủ.', err.message || String(err));
