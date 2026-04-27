@@ -4,7 +4,13 @@
   "private": true,
   "type": "module",
   "description": "Counting Love landing page — Vercel + Blob",
+  "scripts": {
+    "build:client": "esbuild _build/blob-entry.js --bundle --format=esm --target=es2020 --platform=browser --outfile=assets/blob-client.js"
+  },
   "dependencies": {
     "@vercel/blob": "^0.27.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
   }
 }
