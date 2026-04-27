@@ -1559,15 +1559,35 @@
         await bgMusic.play();
         setMusicIcon(true);
         writeMusicPref('on');
+        return true;
       } catch {
         setMusicIcon(false);
         // Không ghi pref — user không chọn tắt, chỉ browser block.
+        return false;
       }
     }
     function pauseMusic() {
       bgMusic.pause();
       setMusicIcon(false);
       writeMusicPref('off');
+      disarmAutoplay();
+    }
+    // Arm "first-gesture autoplay": khi reload trang đã unlocked, browser block
+    // play() lúc load. Listener bắt cú tap/click/scroll đầu tiên → bật nhạc.
+    let autoplayArm = null;
+    function armAutoplayOnFirstGesture() {
+      disarmAutoplay();
+      autoplayArm = new AbortController();
+      const handler = () => {
+        disarmAutoplay();
+        playMusic();
+      };
+      const opts = { capture: true, signal: autoplayArm.signal, passive: true };
+      ['pointerdown', 'touchstart', 'click', 'keydown', 'wheel', 'scroll']
+        .forEach(t => document.addEventListener(t, handler, opts));
+    }
+    function disarmAutoplay() {
+      if (autoplayArm) { autoplayArm.abort(); autoplayArm = null; }
     }
     function toggleMusic() {
       if (bgMusic.paused) playMusic();
@@ -1607,7 +1627,9 @@
       if (pref === 'off') {
         setMusicIcon(false);
       } else {
-        playMusic();
+        playMusic().then(ok => {
+          if (!ok) armAutoplayOnFirstGesture();
+        });
       }
       showFirstRunBannerIfNeeded();
     }
