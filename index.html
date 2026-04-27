@@ -654,7 +654,9 @@
       t.style.background = isError ? '#d94a6b' : 'var(--ink)';
       t.hidden = false;
       clearTimeout(t._tid);
-      t._tid = setTimeout(() => { t.hidden = true; }, 2400);
+      // Lỗi giữ lâu hơn để user trên mobile kịp đọc.
+      const ttl = isError ? 8000 : 2400;
+      t._tid = setTimeout(() => { t.hidden = true; }, ttl);
     }
 
     // ============== DATA ==============
@@ -696,16 +698,36 @@
     async function uploadBlob(file, pathname, onProgress) {
       const pass = getPass();
       if (!pass) throw new Error('Chưa đăng nhập');
+      // iOS file picker đôi khi trả file.type rỗng cho ảnh HEIC từ camera roll
+      // — server-side allowedContentTypes là image/* nên cần đoán từ đuôi file.
+      let contentType = file.type;
+      if (!contentType) {
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        const guess = {
+          jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+          webp: 'image/webp', gif: 'image/gif', heic: 'image/heic', heif: 'image/heif',
+          mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm',
+        }[ext];
+        contentType = guess || 'application/octet-stream';
+      }
       const { upload } = await getBlobClient();
-      return upload(pathname, file, {
-        access: 'public',
-        handleUploadUrl: '/api/blob-upload',
-        contentType: file.type || 'application/octet-stream',
-        clientPayload: pass,
-        onUploadProgress: ({ percentage }) => {
-          if (typeof onProgress === 'function') onProgress(percentage);
-        },
-      });
+      console.log('[uploadBlob] start', pathname, file.size, 'bytes,', contentType);
+      try {
+        const result = await upload(pathname, file, {
+          access: 'public',
+          handleUploadUrl: '/api/blob-upload',
+          contentType,
+          clientPayload: pass,
+          onUploadProgress: ({ percentage }) => {
+            if (typeof onProgress === 'function') onProgress(percentage);
+          },
+        });
+        console.log('[uploadBlob] done', pathname);
+        return result;
+      } catch (err) {
+        console.error('[uploadBlob] failed', pathname, err);
+        throw err;
+      }
     }
 
     // ============== RENDER HERO + TIMELINE + QUOTE ==============
