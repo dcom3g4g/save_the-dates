@@ -6,13 +6,12 @@ import {
 export default async function handler(req, res) {
   try {
     if (req.method === 'POST') {
-      // Mở khóa one-time, không cần auth (public unlock).
+      // Mở khóa, không cần auth. Luôn refresh unlocked_at = now để counter
+      // bắt đầu lại từ 0 mỗi lần qua flow lock screen.
       const data = await readData();
-      if (!data.unlocked) {
-        data.unlocked = true;
-        data.unlocked_at = new Date().toISOString();
-        await writeData(data);
-      }
+      data.unlocked = true;
+      data.unlocked_at = new Date().toISOString();
+      await writeData(data);
       sendJson(res, 200, { ok: true, unlocked: true, unlocked_at: data.unlocked_at });
       return;
     }
