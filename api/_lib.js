@@ -1,7 +1,12 @@
 import { put, list, del } from '@vercel/blob';
 import { timingSafeEqual } from 'node:crypto';
 
-const DATA_BLOB_PATH = 'data.json';
+// Mỗi write data sinh 1 pathname random (data-<hash>.json) thay vì cố định
+// "data.json". Vercel Blob CDN cache rất "dính" theo URL: nếu put đè cùng path
+// thì subsequent reads vẫn lấy bản cũ cho đến khi cache TTL hết. Random suffix
+// → URL mới mỗi lần → đọc luôn fresh. Sau khi ghi xong sẽ xóa các bản cũ.
+const DATA_PREFIX = 'data-';
+const DATA_SUFFIX = '.json';
 
 export class HttpError extends Error {
   constructor(status, message) {
@@ -23,13 +28,26 @@ export function verifyPassword(req) {
   }
 }
 
+async function listDataBlobs() {
+  const all = [];
+  let cursor;
+  do {
+    const page = await list({ prefix: DATA_PREFIX, cursor, limit: 1000 });
+    for (const b of page.blobs) {
+      if (b.pathname.endsWith(DATA_SUFFIX)) all.push(b);
+    }
+    cursor = page.cursor;
+  } while (cursor);
+  return all.sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
+}
+
 export async function readData() {
   try {
-    const { blobs } = await list({ prefix: DATA_BLOB_PATH, limit: 1 });
-    const match = blobs.find(b => b.pathname === DATA_BLOB_PATH);
-    if (!match) return { config: {}, milestones: [] };
-    const res = await fetch(match.url, { cache: 'no-store' });
-    if (!res.ok) throw new HttpError(500, `Không đọc được data.json: ${res.status}`);
+    const blobs = await listDataBlobs();
+    if (blobs.length === 0) return { config: {}, milestones: [] };
+    const newest = blobs[0];
+    const res = await fetch(newest.url, { cache: 'no-store' });
+    if (!res.ok) throw new HttpError(500, `Không đọc được data: ${res.status}`);
     const json = await res.json();
     return {
       config: json.config || {},
@@ -45,13 +63,18 @@ export async function readData() {
 }
 
 export async function writeData(data) {
-  await put(DATA_BLOB_PATH, JSON.stringify(data, null, 2), {
+  // Lấy danh sách bản cũ trước, viết bản mới, rồi xóa bản cũ.
+  const oldBlobs = await listDataBlobs();
+  await put(DATA_PREFIX + 'v' + DATA_SUFFIX, JSON.stringify(data, null, 2), {
     access: 'public',
     contentType: 'application/json',
-    addRandomSuffix: false,
-    allowOverwrite: true,
+    addRandomSuffix: true,
     cacheControlMaxAge: 0,
   });
+  if (oldBlobs.length > 0) {
+    try { await del(oldBlobs.map(b => b.url)); }
+    catch (e) { console.error('Cleanup old data blobs failed:', e); }
+  }
 }
 
 export async function deletePrefix(prefix) {
