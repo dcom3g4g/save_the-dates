@@ -50,6 +50,7 @@ export async function writeData(data) {
     contentType: 'application/json',
     addRandomSuffix: false,
     allowOverwrite: true,
+    cacheControlMaxAge: 0,
   });
 }
 
