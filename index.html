@@ -456,6 +456,26 @@
       background: transparent; border: none; color: #d94a6b;
       cursor: pointer; font-size: 1rem; padding: 4px;
     }
+    .existing-media {
+      margin-top: 10px; display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px;
+    }
+    .existing-media-item {
+      position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden;
+      background: #f4e6ec;
+    }
+    .existing-media-item img {
+      width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .existing-media-item .remove {
+      position: absolute; top: 4px; right: 4px;
+      width: 26px; height: 26px; border-radius: 50%; border: none;
+      background: rgba(217, 74, 107, 0.92); color: white;
+      cursor: pointer; line-height: 1; font-size: 0.9rem;
+    }
+    .existing-media-empty {
+      color: var(--muted); font-size: 0.84rem; padding: 8px 0;
+    }
 
     .ms-row {
       display: flex; gap: 12px; padding: 12px;
@@ -466,6 +486,11 @@
     .ms-row .ms-info { flex: 1; min-width: 0; }
     .ms-row .ms-info .ms-title { font-weight: 600; font-size: 0.92rem; }
     .ms-row .ms-info .ms-meta { font-size: 0.78rem; color: var(--muted); }
+    .ms-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .ms-actions .btn {
+      min-width: 40px; height: 40px; padding: 0 10px;
+      display: inline-flex; align-items: center; justify-content: center;
+    }
 
     .first-run-banner {
       position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
@@ -1188,36 +1213,55 @@
       }
     }
 
-    // ============== TAB: THÊM MỐC ==============
+    // ============== TAB: THÊM / SỬA MỐC ==============
     let pendingFiles = [];
-    function renderAddTab() {
+    let editingMilestoneId = null;
+    let currentMedia = [];
+
+    function renderAddTab(milestone = null) {
+      const isEdit = !!milestone;
+      editingMilestoneId = isEdit ? String(milestone.id) : null;
+      currentMedia = isEdit && Array.isArray(milestone.media)
+        ? milestone.media.map(m => ({ url: m.url, type: m.type === 'video' ? 'video' : 'image' }))
+        : [];
       drawerBody.innerHTML = `
+        ${isEdit ? '<button class="btn btn-ghost" id="ad-back" style="margin-bottom:12px;">← Quay lại danh sách</button>' : ''}
         <div class="field-row">
           <div class="field" style="flex:0 0 90px">
             <label>Emoji</label>
-            <input type="text" id="ad-emoji" maxlength="4" value="🌸">
+            <input type="text" id="ad-emoji" maxlength="4" value="${escapeHtml(milestone?.emoji || '🌸')}">
           </div>
           <div class="field">
             <label>Ngày</label>
-            <input type="date" id="ad-date">
+            <input type="date" id="ad-date" value="${escapeHtml(milestone?.date || '')}">
           </div>
         </div>
         <div class="field">
           <label>Tiêu đề</label>
-          <input type="text" id="ad-title" maxlength="200">
+          <input type="text" id="ad-title" maxlength="200" value="${escapeHtml(milestone?.title || '')}">
         </div>
         <div class="field">
           <label>Mô tả</label>
-          <textarea id="ad-desc" rows="4" maxlength="2000"></textarea>
+          <textarea id="ad-desc" rows="4" maxlength="2000">${escapeHtml(milestone?.description || '')}</textarea>
         </div>
+        ${isEdit ? `
+          <div class="field">
+            <label>Ảnh / video hiện có</label>
+            <div class="existing-media" id="ad-current-media"></div>
+          </div>
+        ` : ''}
         <div class="field">
-          <label>Ảnh / video (chọn nhiều)</label>
+          <label>${isEdit ? 'Thêm ảnh / video mới' : 'Ảnh / video (chọn nhiều)'}</label>
           <input type="file" id="ad-files" accept="image/*,video/*" multiple>
           <div class="file-list" id="ad-file-list"></div>
         </div>
-        <button class="btn btn-primary" id="ad-save" style="width:100%;margin-top:8px;">Lưu mốc</button>
+        <button class="btn btn-primary" id="ad-save" style="width:100%;margin-top:8px;">${isEdit ? 'Lưu chỉnh sửa' : 'Lưu mốc'}</button>
       `;
       pendingFiles = [];
+      if (isEdit) {
+        document.getElementById('ad-back').addEventListener('click', renderListTab);
+        renderCurrentMedia();
+      }
       renderFileList();
       document.getElementById('ad-files').addEventListener('change', e => {
         for (const f of e.target.files) {
@@ -1227,6 +1271,34 @@
         renderFileList();
       });
       document.getElementById('ad-save').addEventListener('click', saveMilestone);
+    }
+    function renderCurrentMedia() {
+      const list = document.getElementById('ad-current-media');
+      if (!list) return;
+      list.innerHTML = '';
+      if (currentMedia.length === 0) {
+        list.innerHTML = '<div class="existing-media-empty">Không còn ảnh/video nào.</div>';
+        return;
+      }
+      currentMedia.forEach((media, index) => {
+        const item = document.createElement('div');
+        item.className = 'existing-media-item';
+        const img = document.createElement('img');
+        img.src = media.type === 'video' ? defaultVideoThumb() : media.url;
+        img.alt = '';
+        img.onerror = () => { img.onerror = null; img.src = defaultAvatar(); };
+        const rm = document.createElement('button');
+        rm.type = 'button';
+        rm.className = 'remove';
+        rm.textContent = '✕';
+        rm.setAttribute('aria-label', 'Xóa ảnh/video này khỏi bài');
+        rm.addEventListener('click', () => {
+          currentMedia.splice(index, 1);
+          renderCurrentMedia();
+        });
+        item.append(img, rm);
+        list.appendChild(item);
+      });
     }
     function renderFileList() {
       const list = document.getElementById('ad-file-list');
@@ -1268,8 +1340,8 @@
 
       btn.disabled = true;
       try {
-        const id = Date.now().toString();
-        const media = [];
+        const id = editingMilestoneId || Date.now().toString();
+        const media = [...currentMedia];
         for (let i = 0; i < pendingFiles.length; i++) {
           const item = pendingFiles[i];
           btn.textContent = `Upload ${i + 1}/${pendingFiles.length}…`;
@@ -1293,13 +1365,14 @@
         await loadData();
         renderTimeline();
         showFirstRunBannerIfNeeded();
-        showToast('Đã thêm mốc');
-        renderAddTab();
+        showToast(editingMilestoneId ? 'Đã lưu chỉnh sửa' : 'Đã thêm mốc');
+        if (editingMilestoneId) renderListTab();
+        else renderAddTab();
       } catch (err) {
         showToast(err.message || 'Lưu thất bại', true);
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Lưu mốc';
+        btn.textContent = editingMilestoneId ? 'Lưu chỉnh sửa' : 'Lưu mốc';
       }
     }
 
@@ -1320,11 +1393,23 @@
             <div class="ms-title">${escapeHtml(ms.title || '')}</div>
             <div class="ms-meta">${escapeHtml(formatDateLong(ms.date))} · ${ms.media?.length || 0} ảnh/video</div>
           </div>
-          <button class="btn btn-danger" data-id="${escapeHtml(ms.id)}">🗑</button>
+          <div class="ms-actions">
+            <button class="btn btn-ghost" data-action="edit" data-id="${escapeHtml(ms.id)}" aria-label="Sửa mốc">✏️</button>
+            <button class="btn btn-danger" data-action="delete" data-id="${escapeHtml(ms.id)}" aria-label="Xóa mốc">🗑</button>
+          </div>
         `;
-        row.querySelector('button').addEventListener('click', () => deleteMilestone(ms.id, ms.title));
+        row.querySelector('[data-action="edit"]').addEventListener('click', () => editMilestone(ms.id));
+        row.querySelector('[data-action="delete"]').addEventListener('click', () => deleteMilestone(ms.id, ms.title));
         drawerBody.appendChild(row);
       }
+    }
+    function editMilestone(id) {
+      const milestone = state.milestones.find(m => String(m.id) === String(id));
+      if (!milestone) {
+        showToast('Không tìm thấy mốc để sửa', true);
+        return;
+      }
+      renderAddTab(milestone);
     }
     async function deleteMilestone(id, title) {
       if (!confirm(`Xóa mốc "${title}"? Hành động này không thể hoàn tác.`)) return;
