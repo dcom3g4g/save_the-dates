@@ -943,7 +943,7 @@
       const empty = document.getElementById('timeline-empty');
       container.innerHTML = '';
       const sorted = [...state.milestones].sort((a, b) =>
-        (a.date || '').localeCompare(b.date || ''));
+        (b.date || '').localeCompare(a.date || ''));
       if (sorted.length === 0) { empty.hidden = false; return; }
       empty.hidden = true;
 
